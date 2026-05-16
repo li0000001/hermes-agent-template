@@ -200,7 +200,7 @@ def write_config_yaml(data: dict[str, str]) -> None:
     # Deployment-managed (always authoritative — these reflect the runtime env).
     merged_model = dict(merged.get("model") if isinstance(merged.get("model"), dict) else {})
     merged_model["default"] = model
-    merged_model["provider"] = "auto"
+    merged_model["provider"] = "openai"
     merged["model"] = merged_model
 
     merged_terminal = dict(merged.get("terminal") if isinstance(merged.get("terminal"), dict) else {})

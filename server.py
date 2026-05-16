@@ -83,6 +83,8 @@ else:
 ENV_VARS = [
     ("LLM_MODEL",               "Model",                    "model",     False),
     ("OPENROUTER_API_KEY",       "OpenRouter",               "provider",  True),
+    ("OPENAI_API_KEY",           "OpenAI",                   "provider",  True),
+    ("OPENAI_API_BASE",          "OpenAI API Base",          "provider",  False),
     ("DEEPSEEK_API_KEY",         "DeepSeek",                 "provider",  True),
     ("DASHSCOPE_API_KEY",        "DashScope",                "provider",  True),
     ("GLM_API_KEY",              "GLM / Z.AI",               "provider",  True),
@@ -943,7 +945,33 @@ async def route_setup_404(request: Request) -> Response:
 
 
 # ── App lifecycle ─────────────────────────────────────────────────────────────
+def _seed_env_from_os():
+    """Bootstrap .env from OS environment variables on first start.
+
+    Cloud platforms (Render, Railway) inject config via OS env vars, but our
+    gateway subprocess only reads from ``$HERMES_HOME/.env``. Without this
+    seeding, a fresh deploy leaves ``.env`` empty and the gateway starts with
+    no provider configuration — even though the OS env is fully populated.
+
+    This runs once at startup when ``.env`` is missing. Subsequent config
+    changes go through the admin UI (api_config_put) which calls write_env
+    directly.
+    """
+    if ENV_FILE.exists():
+        return
+    exported = {}
+    for key, _, _, _ in ENV_VARS:
+        val = os.environ.get(key)
+        if val:
+            exported[key] = val
+    if exported:
+        write_env(ENV_FILE, exported)
+        write_config_yaml(exported)
+        print(f"[server] Seeded .env with {len(exported)} variable(s) from OS environment.", flush=True)
+
+
 async def auto_start():
+    _seed_env_from_os()
     if s3_sync:
         s3_sync.sync_down()
     if is_config_complete():
